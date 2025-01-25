@@ -18,42 +18,26 @@ const httpServer = http.createServer(app);
 const wsServer = SocketIO(httpServer);
 
 wsServer.on("connection", (socket) => {
+  socket["nickname"] = "Anon";
   socket.onAny((event) => {
     console.log(`Socket Event:${event}`);
   });
   socket.on("enter_room", (roomName, done) => {
-    // console.log(socket.rooms);
     socket.join(roomName);
     done();
-    // console.log(socket.rooms);
-    // setTimeout(() => {
-    //   done();
-    // }, 3000);
+    socket.to(roomName).emit("welcome", socket.nickname); // socket을 제외한 나머지 사람들에게만 메세지를 보냄.
   });
+  socket.on("disconnecting", () => {
+    console.log("disconnecting");
+    socket.rooms.forEach((room) =>
+      socket.to(room).emit("bye", socket.nickname)
+    );
+  });
+  socket.on("new_message", (msg, room, done) => {
+    socket.to(room).emit("new_message", `${socket.nickname}: ${msg}`);
+    done();
+  });
+  socket.on("nickname", (nickname) => (socket["nickname"] = nickname));
 });
-
-// const wss = new WebSocket.Server({ server });
-// const sockets = [];
-
-// wss.on("connection", (socket) => {
-//   sockets.push(socket);
-//   socket["nickname"] = "Anon";
-//   console.log("Connected to Browser ✅");
-//   socket.on("close", () => console.log("Disconnected from Browser ❌"));
-//   socket.on("message", (msg) => {
-//     const message = JSON.parse(msg);
-//     switch (message.type) {
-//       case "new_message":
-//         sockets.forEach((aSocket) =>
-//           aSocket.send(`${socket.nickname}: ${message.payload}`)
-//         );
-//         break;
-//       case "nickname":
-//         socket["nickname"] = message.payload;
-//         console.log(message.payload);
-//         break;
-//     }
-//   });
-// });
 
 httpServer.listen(3030, handleListen);
